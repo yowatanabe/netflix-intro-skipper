@@ -1,0 +1,52 @@
+{
+  "name": "netflix-intro-skipper",
+  "version": "1.0.0",
+  "description": "Chrome extension to automatically skip Netflix intros for seamless viewing experience",
+  "main": "manifest.json",
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "keywords": [
+    "netflix",
+    "chrome-extension",
+    "intro-skipper",
+    "automation",
+    "streaming",
+    "javascript",
+    "manifest-v3"
+  ],
+  "author": "yowatanabe",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yowatanabe/netflix-intro-skipper.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yowatanabe/netflix-intro-skipper/issues"
+  },
+  "homepage": "https://github.com/yowatanabe/netflix-intro-skipper#readme",
+  "devDependencies": {
+    "@types/chrome": "^0.0.254",
+    "fast-check": "^3.15.0",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0"
+  },
+  "jest": {
+    "testEnvironment": "jsdom",
+    "setupFilesAfterEnv": [
+      "<rootDir>/tests/test-setup.js"
+    ],
+    "collectCoverageFrom": [
+      "src/**/*.js",
+      "!src/**/*.test.js",
+      "!tests/**",
+      "!node_modules/**"
+    ],
+    "testMatch": [
+      "<rootDir>/tests/**/*.test.js",
+      "<rootDir>/**/*.test.js"
+    ]
+  }
+}
