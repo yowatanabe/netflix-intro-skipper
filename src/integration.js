@@ -19,6 +19,15 @@ class IntegrationManager {
    */
   async initialize() {
     try {
+      // Try to wake up service worker if it's sleeping
+      try {
+        await chrome.runtime.sendMessage({ action: "contentScriptReady" });
+      } catch (error) {
+        console.log(
+          "[Integration] Service worker may be sleeping, attempting wake-up"
+        );
+      }
+
       // Set up message routing
       this.setupMessageRouting();
 
@@ -437,8 +446,8 @@ class StateSync {
       ) {
         const response = await new Promise((resolve) => {
           const timeout = setTimeout(() => {
-            resolve({ success: false, error: "Timeout" });
-          }, 1000); // 1 second timeout
+            resolve({ success: false, error: "Timeout", silent: true });
+          }, 2000); // Increased timeout to 2 seconds
 
           try {
             chrome.runtime.sendMessage(
@@ -449,7 +458,8 @@ class StateSync {
                   const errorMessage = chrome.runtime.lastError.message;
                   if (
                     errorMessage.includes("Extension context invalidated") ||
-                    errorMessage.includes("Could not establish connection")
+                    errorMessage.includes("Could not establish connection") ||
+                    errorMessage.includes("Extension not active")
                   ) {
                     resolve({
                       success: false,
@@ -466,7 +476,7 @@ class StateSync {
             );
           } catch (error) {
             clearTimeout(timeout);
-            resolve({ success: false, error: error.message });
+            resolve({ success: false, error: error.message, silent: true });
           }
         });
 
@@ -477,6 +487,76 @@ class StateSync {
             "[StateSync] Failed to load initial settings:",
             response.error
           );
+        }
+
+        // If background script is not responding, try to wake it up
+        if (
+          response &&
+          response.error &&
+          (response.error.includes("Extension not active") ||
+            response.error.includes("Extension context invalidated") ||
+            response.error.includes("Could not establish connection"))
+        ) {
+          // Multiple retry attempts with exponential backoff
+          let retryResponse = null;
+          const maxRetries = 3;
+
+          for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            await new Promise((resolve) => setTimeout(resolve, attempt * 200));
+
+            retryResponse = await new Promise((resolve) => {
+              const timeout = setTimeout(() => {
+                resolve({
+                  success: false,
+                  error: "Retry timeout",
+                  silent: true,
+                });
+              }, 2000);
+
+              try {
+                chrome.runtime.sendMessage(
+                  { action: "getSettings" },
+                  (response) => {
+                    clearTimeout(timeout);
+                    if (chrome.runtime.lastError) {
+                      const errorMessage = chrome.runtime.lastError.message;
+                      resolve({
+                        success: false,
+                        error: errorMessage,
+                        silent: true,
+                      });
+                    } else {
+                      resolve(
+                        response || { success: false, error: "No response" }
+                      );
+                    }
+                  }
+                );
+              } catch (error) {
+                clearTimeout(timeout);
+                resolve({ success: false, error: error.message, silent: true });
+              }
+            });
+
+            if (retryResponse && retryResponse.success) {
+              this.currentState.settings = retryResponse.settings;
+              console.log(
+                `[StateSync] Settings loaded after ${attempt} retry attempts`
+              );
+              break;
+            }
+          }
+
+          // If all retries failed, use fallback settings
+          if (!retryResponse || !retryResponse.success) {
+            console.warn(
+              "[StateSync] All retry attempts failed, using fallback settings"
+            );
+            this.currentState.settings = {
+              autoSkipEnabled: true,
+              lastUpdated: Date.now(),
+            };
+          }
         }
       }
 
@@ -493,9 +573,18 @@ class StateSync {
       const errorMessage = error?.message || error?.toString() || String(error);
       if (
         !errorMessage.includes("Extension context invalidated") &&
-        !errorMessage.includes("Could not establish connection")
+        !errorMessage.includes("Could not establish connection") &&
+        !errorMessage.includes("Extension not active")
       ) {
         console.error("[StateSync] Error loading initial state:", error);
+      }
+
+      // Ensure default settings are available even on error
+      if (!this.currentState.settings) {
+        this.currentState.settings = {
+          autoSkipEnabled: true,
+          lastUpdated: Date.now(),
+        };
       }
     }
   }

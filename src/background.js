@@ -172,6 +172,30 @@ chrome.runtime.onStartup.addListener(() => {
   }
 });
 
+// Service worker activation handler (for wake-up after sleep)
+self.addEventListener("activate", (event) => {
+  try {
+    isExtensionActive = true;
+    backgroundErrorHandler.reset();
+    console.log("[Background] Service worker activated");
+  } catch (error) {
+    backgroundErrorHandler.handleError(error, "service-worker-activate");
+  }
+});
+
+// Service worker wake-up handler
+self.addEventListener("message", (event) => {
+  try {
+    if (event.data && event.data.type === "WAKE_UP") {
+      isExtensionActive = true;
+      backgroundErrorHandler.reset();
+      console.log("[Background] Service worker woken up");
+    }
+  } catch (error) {
+    backgroundErrorHandler.handleError(error, "service-worker-message");
+  }
+});
+
 // Handle extension suspension
 chrome.runtime.onSuspend.addListener(() => {
   try {
@@ -184,10 +208,10 @@ chrome.runtime.onSuspend.addListener(() => {
 
 // Handle messages from content script and popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  // Ensure extension is active
+  // Ensure extension is active - if not, try to reactivate
   if (!isExtensionActive) {
-    sendResponse({ success: false, error: "Extension not active" });
-    return false;
+    isExtensionActive = true; // Reactivate on message
+    backgroundErrorHandler.reset();
   }
 
   try {
