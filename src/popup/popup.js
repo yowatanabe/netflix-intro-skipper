@@ -5,6 +5,7 @@ class PopupController {
   constructor() {
     this.toggle = document.getElementById("autoSkipToggle");
     this.statusText = document.getElementById("statusText");
+    this.versionInfo = document.getElementById("versionInfo");
     this.isInitialized = false;
     this.errorCount = 0;
     this.maxErrors = 5;
@@ -61,6 +62,9 @@ class PopupController {
 
   async init() {
     try {
+      // Load version information first
+      this.loadVersionInfo();
+
       // Load current settings and update UI
       await this.loadSettings();
 
@@ -74,6 +78,23 @@ class PopupController {
     } catch (error) {
       this.handleError(error, "PopupController.init");
       this.updateStatusText("Error loading settings");
+    }
+  }
+
+  loadVersionInfo() {
+    try {
+      // Get version from manifest.json
+      const manifest = chrome.runtime.getManifest();
+      const version = manifest.version;
+
+      if (this.versionInfo) {
+        this.versionInfo.textContent = `v${version}`;
+      }
+    } catch (error) {
+      this.handleError(error, "PopupController.loadVersionInfo", true);
+      if (this.versionInfo) {
+        this.versionInfo.textContent = "v?.?.?";
+      }
     }
   }
 

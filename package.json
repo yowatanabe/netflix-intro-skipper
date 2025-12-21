@@ -1,12 +1,19 @@
 {
   "name": "netflix-intro-skipper",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Chrome extension to automatically skip Netflix intros for seamless viewing experience",
   "main": "manifest.json",
   "scripts": {
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "version:patch": "node scripts/release-version.js check && npm version patch --no-git-tag-version && node scripts/release-version.js sync",
+    "version:minor": "node scripts/release-version.js check && npm version minor --no-git-tag-version && node scripts/release-version.js sync",
+    "version:major": "node scripts/release-version.js check && npm version major --no-git-tag-version && node scripts/release-version.js sync",
+    "version:dry-run:patch": "node scripts/release-version.js dry-run patch",
+    "version:dry-run:minor": "node scripts/release-version.js dry-run minor",
+    "version:dry-run:major": "node scripts/release-version.js dry-run major",
+    "preversion": "npm test"
   },
   "keywords": [
     "netflix",

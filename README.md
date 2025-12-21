@@ -62,6 +62,73 @@ npm run test:coverage
 3. **アイコン**: `assets/icons/` でアイコンファイルを管理
 4. **拡張機能テスト**: Chrome で `chrome://extensions/` から再読み込み
 
+### リリースバージョン管理
+
+リリースバージョンを更新したい場合は以下のコマンドを実行すると`package.json`と`manifest.json`の`version`が更新されます
+
+```bash
+# パッチバージョンアップ（バグ修正: 1.0.1 → 1.0.2）
+npm run version:patch
+
+# マイナーバージョンアップ（新機能: 1.0.1 → 1.1.0）
+npm run version:minor
+
+# メジャーバージョンアップ（破壊的変更: 1.0.1 → 2.0.0）
+npm run version:major
+```
+
+Dry Run（事前確認）:
+
+```bash
+# 実行前に何が行われるかを確認
+npm run version:dry-run:patch
+npm run version:dry-run:minor
+npm run version:dry-run:major
+```
+
+実行例:
+
+```bash
+$ npm run version:patch
+
+> netflix-intro-skipper@1.0.1 version:patch
+> node scripts/release-version.js check && npm version patch --no-git-tag-version && node scripts/release-version.js sync
+
+📦 Package version: 1.0.1
+📋 Manifest version: 1.0.1
+✅ Versions are consistent!
+
+> preversion
+> npm test
+
+
+> netflix-intro-skipper@1.0.1 test
+> jest
+
+ PASS  tests/integration.test.js
+ PASS  tests/e2e.test.js
+ PASS  tests/ui-non-interference.test.js
+ PASS  tests/settings-persistence.test.js
+ PASS  tests/domain-filtering.test.js
+ PASS  tests/popup.test.js
+ PASS  tests/multiple-video-session.test.js
+ PASS  tests/auto-click.test.js
+ PASS  tests/no-action-behavior.test.js
+ PASS  tests/error-handling.test.js (5.283 s)
+ PASS  tests/retry-mechanism.test.js (5.928 s)
+ PASS  tests/conditional-behavior.test.js (6.351 s)
+
+Test Suites: 12 passed, 12 total
+Tests:       128 passed, 128 total
+Snapshots:   0 total
+Time:        7.025 s
+Ran all test suites.
+v1.0.2
+📦 Package version: 1.0.2
+🔄 Updated manifest.json: 1.0.1 → 1.0.2
+✅ Version sync completed successfully!
+```
+
 ### プロジェクト構造
 
 ```none
@@ -84,6 +151,8 @@ netflix-intro-skipper/
 │   └── .gitkeep
 ├── coverage/                           # テストカバレッジレポート(Git管理外)
 ├── node_modules/                       # npm 依存関係(Git管理外)
+├── scripts/                            # 開発用スクリプト
+│   └── release-version.js              # リリースバージョン管理スクリプト
 ├── src/                                # ソースコード
 │   ├── popup/                          # ポップアップUI
 │   │   ├── .gitkeep
@@ -93,7 +162,8 @@ netflix-intro-skipper/
 │   ├── background.js                   # バックグラウンドサービスワーカー
 │   ├── content.js                      # Netflix ページ用コンテンツスクリプト
 │   ├── integration.js                  # コンポーネント統合管理
-│   └── settings.js                     # 設定管理
+│   ├── settings.js                     # 設定管理
+│   └── version.js                      # バージョン管理ユーティリティ
 ├── tests/                              # テストファイル
 │   ├── .gitkeep
 │   ├── auto-click.test.js              # 自動クリック機能のテスト

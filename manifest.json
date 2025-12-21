@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Netflix Intro Skipper",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Automatically skip Netflix intros for seamless viewing experience",
   "icons": {
     "16": "assets/icons/icon16.png",
@@ -122,6 +122,7 @@
         "*://*.netflix.co.za/*"
       ],
       "js": [
+        "src/version.js",
         "src/settings.js",
         "src/integration.js",
         "src/content.js"
