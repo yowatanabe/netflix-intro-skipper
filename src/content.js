@@ -124,18 +124,6 @@ class SkipButtonDetector {
       'button[aria-label*="スキップ"]',
     ];
 
-    // Fallback selectors for when primary methods fail
-    this.fallbackSelectors = [
-      'button:contains("Skip")',
-      'button:contains("スキップ")',
-      '[role="button"]:contains("Skip")',
-      '[role="button"]:contains("スキップ")',
-      ".player-controls button",
-      ".watch-video button",
-      'button[class*="skip"]',
-      'button[class*="Skip"]',
-    ];
-
     // Detection method priorities (higher number = higher priority)
     this.detectionMethods = [
       { method: "detectByCssSelector", priority: 3, name: "selector" },
