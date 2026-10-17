@@ -2,5 +2,19 @@
   "enabledPlugins": {
     "claude-code-setup@claude-plugins-official": true,
     "commit-commands@claude-plugins-official": true
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/run-related-tests.js\"",
+            "timeout": 180
+          }
+        ]
+      }
+    ]
   }
 }
