@@ -141,3 +141,7 @@ web-ext-artifacts/
 # Test artifacts
 test-results/
 coverage/
+
+# Claude Code (personal/local)
+.claude/settings.local.json
+.claude/.cc-writes/
