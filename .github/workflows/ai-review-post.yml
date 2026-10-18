@@ -1,0 +1,53 @@
+name: AI review (post)
+
+# ai-review.yml の結果 (成果物) を PR のコメントとして投稿する。
+# このワークフローは、書き込み権限を持つ。PR のコードは取得も実行もしない。
+# Dependabot の PR でも、workflow_run であれば書き込み権限を使える。
+on:
+  workflow_run:
+    workflows: ["AI review"]
+    types: [completed]
+
+permissions:
+  actions: read
+  pull-requests: write
+
+jobs:
+  post:
+    if: github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      # フォークの PR やドラフトでは、成果物が無い。その場合は何もしない
+      - id: download
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: kiro-review
+          path: ${{ runner.temp }}/kiro-review
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      # 成果物は信頼しない: PR 番号は、数字であることを確かめてから使う。
+      # コメントは、目印 (<!-- kiro-review -->) 付きの1つを、更新し続ける
+      - name: コメントを投稿または更新
+        if: steps.download.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          DIR: ${{ runner.temp }}/kiro-review
+        run: |
+          pr=$(tr -d '[:space:]' < "$DIR/pr-number.txt")
+          if ! [[ "$pr" =~ ^[0-9]+$ ]]; then
+            echo "PR 番号が不正です: $pr" >&2
+            exit 1
+          fi
+          ids=$(gh api --paginate "repos/$REPO/issues/$pr/comments" \
+            --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("<!-- kiro-review -->"))) | .id')
+          existing=${ids%%$'\n'*}
+          if [ -n "$existing" ]; then
+            gh api -X PATCH "repos/$REPO/issues/comments/$existing" -F body=@"$DIR/review.md" > /dev/null
+            echo "コメントを更新しました: $existing"
+          else
+            gh api "repos/$REPO/issues/$pr/comments" -F body=@"$DIR/review.md" > /dev/null
+            echo "コメントを投稿しました"
+          fi

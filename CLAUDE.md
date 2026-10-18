@@ -48,3 +48,19 @@ npm run version:patch             # 実行 (patch / minor / major)
 
 - `main` から `feature/*` / `fix/*` ブランチを切り、Pull Request でマージする
 - コミットメッセージは `feat:` / `fix:` などの接頭辞 + 日本語の要約 (例: `fix: PCスリープ後のService Worker問題を修正`)
+
+## CI / 自動化
+
+`.github/workflows/` に3系統ある。
+
+- `ci.yml` — PR と `main` への push で `npm ci` と `npm test` を実行する。ジョブ名 `test` は ruleset の必須チェックなので、名前を変えない
+- `dependabot-automerge.yml` — Dependabot の PR すべてに auto-merge を予約し、更新の種類 (major / minor / patch) をコメントする。マージには、ruleset によるコードオーナーの承認と `test` の成功が必要
+- `ai-review.yml` / `ai-review-post.yml` — PR を Kiro CLI (ヘッドレス、V3) がレビューし、PR にコメントを1つ書き続ける。助言のみで、マージの必須チェックではない。プロンプトは `.github/kiro-review-prompt.md`
+
+AI レビューの注意点:
+
+- シークレット `NETFLIX_INTRO_SKIPPER_ACTIONS_DEPENDABOT` (Kiro の API キー) を、**Actions と Dependabot の両方**に、同じ名前で登録する。Dependabot の PR は Dependabot 用のシークレットしか読めない
+- `npm ci` / `npm test` を実行するジョブ (`prepare`) と、Kiro を動かすジョブ (`review`) を分けている。シークレットを使うジョブで PR のコードを実行しない。この分離を崩さない
+- Kiro に許可するツールは読み取りと検索 (`read_file`, `grep_search`) だけ。シェルや書き込みを許可しない
+- フォークからの PR は対象外。公開リポジトリで、外部の PR にシークレットを渡さない
+- AI は、削除された API の使用を見逃すことがある (fast-check 4 の更新で確認済み)。合否は `test` の結果で判断し、AI のレビューは補助として扱う
