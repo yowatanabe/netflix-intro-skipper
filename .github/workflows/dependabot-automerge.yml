@@ -2,6 +2,9 @@ name: Dependabot auto-merge
 
 # Dependabot の PR では pull_request の GITHUB_TOKEN が読み取り専用になるため pull_request_target を使う。
 # PR のコードはチェックアウトしない (テストは ci.yml が実行する)。
+#
+# すべての Dependabot PR に auto-merge を予約する。マージには、ruleset によるコードオーナーの承認と
+# 必須チェック (test) の成功が必要なので、承認が人による判断の関所になる。
 on: pull_request_target
 
 permissions:
@@ -13,30 +16,35 @@ jobs:
     if: github.actor == 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
-      - id: metadata
-        uses: dependabot/fetch-metadata@v2
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      # このリポジトリの dependencies は devDependencies のみ (間接依存も開発用)。
-      # 本番依存を追加したら、この条件を見直す。
-      - name: patch / minor を自動マージに予約
-        if: >-
-          steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
-          steps.metadata.outputs.update-type == 'version-update:semver-minor'
+      - name: 更新の種類を判定して auto-merge を予約
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
+          # タイトルは "bump <name> from <old> to <new>" 形式。"v" 接頭辞は除き、欠けた桁は 0 とみなす
+          kind="不明"
+          if [[ "$PR_TITLE" =~ from\ v?([0-9][^\ ]*)\ to\ v?([0-9][^\ ]*) ]]; then
+            IFS=. read -r old_major old_minor _ <<< "${BASH_REMATCH[1]}"
+            IFS=. read -r new_major new_minor _ <<< "${BASH_REMATCH[2]}"
+            old_major=${old_major:-0}; old_minor=${old_minor:-0}
+            new_major=${new_major:-0}; new_minor=${new_minor:-0}
+            if [ "$old_major" != "$new_major" ]; then
+              kind="major"
+            elif [ "$old_major" = "0" ] && [ "$old_minor" != "$new_minor" ]; then
+              kind="minor (0.x のため破壊的変更を含む可能性あり)"
+            elif [ "$old_minor" != "$new_minor" ]; then
+              kind="minor"
+            else
+              kind="patch"
+            fi
+          fi
+
+          if [ "$kind" = "major" ]; then
+            note="破壊的変更が含まれる可能性があります。リリースノートを確認してから承認してください。"
+          else
+            note="変更内容を確認して承認してください。"
+          fi
+
           gh pr merge --auto --squash "$PR_URL"
-          gh pr comment "$PR_URL" --body "@yowatanabe patch/minor の更新です。内容を確認して承認すると、\`test\` ジョブの成功後に自動マージされます。"
-
-      - name: それ以外は人の確認を依頼
-        if: >-
-          steps.metadata.outputs.update-type != 'version-update:semver-patch' &&
-          steps.metadata.outputs.update-type != 'version-update:semver-minor'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_URL: ${{ github.event.pull_request.html_url }}
-        run: |
-          gh pr comment "$PR_URL" --body "@yowatanabe major 更新などのため自動マージしません。\`test\` ジョブの結果と変更内容を確認してください。"
+          gh pr comment "$PR_URL" --body "@yowatanabe 更新の種類: **${kind}**。${note}承認すると、\`test\` ジョブの成功後に自動マージされます。"
