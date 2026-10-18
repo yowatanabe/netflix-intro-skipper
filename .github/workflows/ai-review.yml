@@ -1,0 +1,166 @@
+name: AI review
+
+# PR の差分を Kiro CLI (ヘッドレス) にレビューさせ、結果を成果物として保存する。
+# コメントの投稿は ai-review-post.yml (workflow_run) が行う。
+#
+# セキュリティ上の構成:
+# - prepare ジョブ: npm ci / npm test など、PR のコードを実行する。シークレットは使わない
+# - review ジョブ: 別のマシンで実行する。PR のコードは実行せず、読み取りだけを許可した Kiro にレビューさせる。
+#   シークレット (Dependabot の PR では Dependabot 用のシークレット) を使うのは、このジョブだけ
+# - フォークからの PR は対象外 (公開リポジトリで、外部の PR にシークレットを渡さない)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  prepare:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      !github.event.pull_request.draft
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - name: レビュー用のコンテキストを作成
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          ctx=review-context
+          mkdir -p "$ctx"
+          printf '%s\n' "$PR_NUMBER" > "$ctx/pr-number.txt"
+          printf '%s\n' "$PR_TITLE" > "$ctx/pr-title.txt"
+          printf '%s\n' "${PR_BODY:0:30000}" > "$ctx/pr-body.txt"
+          git diff "$BASE_SHA" HEAD -- . ':(exclude)package-lock.json' ':(exclude)review-context' > "$ctx/pr.diff.full"
+          head -c 200000 "$ctx/pr.diff.full" > "$ctx/pr.diff"
+          rm "$ctx/pr.diff.full"
+          git diff --stat "$BASE_SHA" HEAD -- . ':(exclude)review-context' > "$ctx/pr-stat.txt"
+          git diff "$BASE_SHA" HEAD -- package-lock.json | grep -E '^[-+] +"(node_modules/[^"]+|version)"' > "$ctx/lock-versions.diff" || true
+          # Dependabot のタイトル ("bump <name> from ...") から、更新対象のパッケージ名を取り出す
+          pkg=$(sed -nE 's/.*[Bb]ump ([^ ]+) from .*/\1/p' <<< "$PR_TITLE")
+          if [[ "$pkg" =~ ^(@[a-z0-9._~-]+/)?[a-z0-9._~-]+$ ]]; then
+            npm ls "$pkg" --all --package-lock-only > "$ctx/npm-ls.txt" 2>&1 || true
+          fi
+
+      - name: テストを実行 (結果を保存)
+        run: |
+          ctx=review-context
+          if npm test > "$ctx/test-full.txt" 2>&1; then
+            echo "成功" > "$ctx/test-status.txt"
+          else
+            echo "失敗" > "$ctx/test-status.txt"
+          fi
+          tail -n 200 "$ctx/test-full.txt" > "$ctx/test-result.txt"
+          rm "$ctx/test-full.txt"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: review-context
+          path: review-context
+          retention-days: 1
+
+  review:
+    needs: prepare
+    # prepare のスキップに頼らず、シークレットを使うジョブにも、直接の条件を置く
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      !github.event.pull_request.draft
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # 作業ツリーは、Kiro が読むために使う。トークンを残さない (persist-credentials: false)
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: review-context
+          path: review-context
+
+      # プロンプトは、PR ではなく、ベースブランチのものを使う (PR による書き換えを防ぐ)。
+      # ベースにまだ無い場合 (このファイルを追加する PR 自身) は、チェックアウトしたものを使う
+      - name: プロンプトを用意
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git show "$BASE_SHA:.github/kiro-review-prompt.md" > review-context/prompt.txt 2>/dev/null \
+            || cp .github/kiro-review-prompt.md review-context/prompt.txt
+
+      - name: Kiro CLI をインストール
+        run: |
+          curl -fsSL https://cli.kiro.dev/install | bash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          export PATH="$HOME/.local/bin:$PATH"
+          command -v kiro-cli || { echo "kiro-cli が見つかりません"; exit 1; }
+          kiro-cli --version
+
+      # 許可するツールは、読み取りと検索だけ (シェルやファイルの書き込みは許可しない)
+      - name: Kiro でレビュー
+        id: kiro
+        continue-on-error: true
+        env:
+          KIRO_API_KEY: ${{ secrets.NETFLIX_INTRO_SKIPPER_ACTIONS_DEPENDABOT }}
+        run: |
+          timeout 600 kiro-cli chat --v3 --no-interactive --trust-tools=read_file,grep_search \
+            "$(cat review-context/prompt.txt)" \
+            > review-context/review_raw.txt 2> review-context/review_err.txt
+
+      - name: コメントの本文を作成
+        if: always()
+        env:
+          KIRO_OUTCOME: ${{ steps.kiro.outcome }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          ctx=review-context
+          out="$ctx/review.md"
+          {
+            echo '<!-- kiro-review -->'
+            echo '## AI レビュー (Kiro CLI)'
+            echo
+            echo "対象コミット: \`${HEAD_SHA:0:7}\` / 事前のテスト: $(cat "$ctx/test-status.txt")"
+            echo
+            echo '> AI による補助的なレビューです。誤りを含む可能性があります。マージの判断は、`test` ジョブの結果と、人の確認を根拠にしてください。'
+            echo
+          } > "$out"
+          if [ "$KIRO_OUTCOME" = "success" ] && [ -s "$ctx/review_raw.txt" ]; then
+            sed -E 's/\x1b\[[0-9;?]*[a-zA-Z]//g' "$ctx/review_raw.txt" > "$ctx/review_clean.txt"
+            # 最後の「## 判定」から後ろだけを使う (作業の経過が前の文に続く場合に備える)
+            perl -0777 -ne 'if (/.*(## 判定.*)\z/s) { print $1 } else { print }' "$ctx/review_clean.txt" >> "$out"
+          else
+            echo "AI レビューの実行に失敗しました。ワークフローのログを確認してください: $RUN_URL" >> "$out"
+          fi
+          # AI の出力は信頼しない: ユーザー名へのメンション (@name) を無効化し、長さを制限する
+          # (パッケージ名の @scope/name は、そのまま残す)
+          perl -CSD -pi -e 's/(?<![\w`])@([A-Za-z0-9][A-Za-z0-9-]*)(?![A-Za-z0-9\/-])/@\x{200B}$1/g' "$out"
+          perl -CSD -0777 -pi -e '$_ = substr($_, 0, 20000)' "$out"
+          mkdir -p kiro-review
+          cp "$out" kiro-review/review.md
+          cp "$ctx/pr-number.txt" kiro-review/pr-number.txt
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: kiro-review
+          path: kiro-review
+          retention-days: 1
