@@ -205,7 +205,9 @@ describe("Multiple Video Session Handling - Property-Based Tests", () => {
   test("Property 3: Multiple video session independence", async () => {
     await fc.assert(
       fc.asyncProperty(
-        fc.array(
+        // 同じ videoId は同じ動画として1つのセッションにまとまる (Map のキー) ため、
+        // videoId が重複しないように生成する。重複すると、セッション数の断言が不安定になる
+        fc.uniqueArray(
           fc.record({
             videoId: fc
               .integer({ min: 100000, max: 999999 })
@@ -213,7 +215,11 @@ describe("Multiple Video Session Handling - Property-Based Tests", () => {
             hasSkipButton: fc.boolean(),
             skipAttempts: fc.integer({ min: 0, max: 2 }), // Reduced for performance
           }),
-          { minLength: 2, maxLength: 3 } // Reduced for performance
+          {
+            selector: (videoSession) => videoSession.videoId,
+            minLength: 2,
+            maxLength: 3, // Reduced for performance
+          }
         ),
         withTestDOM(async (videoSessions) => {
           const domMonitor = new DOMMonitor();
