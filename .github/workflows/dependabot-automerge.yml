@@ -1,0 +1,42 @@
+name: Dependabot auto-merge
+
+# Dependabot の PR では pull_request の GITHUB_TOKEN が読み取り専用になるため pull_request_target を使う。
+# PR のコードはチェックアウトしない (テストは ci.yml が実行する)。
+on: pull_request_target
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  automerge:
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - id: metadata
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # このリポジトリの dependencies は devDependencies のみ (間接依存も開発用)。
+      # 本番依存を追加したら、この条件を見直す。
+      - name: patch / minor を自動マージに予約
+        if: >-
+          steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
+          steps.metadata.outputs.update-type == 'version-update:semver-minor'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          gh pr merge --auto --squash "$PR_URL"
+          gh pr comment "$PR_URL" --body "@yowatanabe patch/minor の更新です。内容を確認して承認すると、\`test\` ジョブの成功後に自動マージされます。"
+
+      - name: それ以外は人の確認を依頼
+        if: >-
+          steps.metadata.outputs.update-type != 'version-update:semver-patch' &&
+          steps.metadata.outputs.update-type != 'version-update:semver-minor'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          gh pr comment "$PR_URL" --body "@yowatanabe major 更新などのため自動マージしません。\`test\` ジョブの結果と変更内容を確認してください。"

@@ -1,0 +1,13 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    # 公開直後のバージョンを避ける (サプライチェーン攻撃対策)
+    cooldown:
+      default-days: 3
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
