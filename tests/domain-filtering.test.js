@@ -211,12 +211,11 @@ describe("Domain Filtering Tests", () => {
         // Random domains that don't contain netflix
         fc
           .tuple(
-            fc.stringOf(
-              fc
-                .char()
-                .filter((c) => c !== "." && c !== "-" && /[a-z0-9]/.test(c)),
-              { minLength: 3, maxLength: 10 }
-            ),
+            fc.string({
+              unit: fc.constantFrom(..."abcdefghijklmnopqrstuvwxyz0123456789"),
+              minLength: 3,
+              maxLength: 10,
+            }),
             fc.constantFrom(
               "com",
               "org",
@@ -254,10 +253,11 @@ describe("Domain Filtering Tests", () => {
       // Feature: netflix-intro-skipper, Property 8: Domain restriction
       const netflixSubdomains = fc
         .tuple(
-          fc.stringOf(
-            fc.char().filter((c) => /[a-z0-9-]/.test(c)),
-            { minLength: 1, maxLength: 10 }
-          ),
+          fc.string({
+            unit: fc.constantFrom(..."abcdefghijklmnopqrstuvwxyz0123456789-"),
+            minLength: 1,
+            maxLength: 10,
+          }),
           fc.constantFrom("netflix.com")
         )
         .map(([subdomain, domain]) => `${subdomain}.${domain}`);
