@@ -1,211 +1,144 @@
 # Netflix Intro Skipper
 
-Netflix のイントロを自動的にスキップする Chrome 拡張機能です。
+**English** | [日本語](README.ja.md)
 
-## 🎯 機能
+A Chrome extension that automatically clicks Netflix's "Skip Intro" button for you.
 
-- ✅ Netflix の「イントロをスキップ」ボタンを自動検出・クリック
-- ✅ 自動スキップ機能のオン/オフ切り替え
-- ✅ 世界各国の Netflix ドメインに対応
-- ✅ 軽量で非侵入的な設計
-- ✅ 多言語対応（日本語、英語、その他）
-- ✅ セッション管理で複数動画に対応
-- ✅ 堅牢なエラーハンドリング
+## 🎯 Features
 
-## 🚀 インストール方法
+- ✅ Detects and clicks Netflix's "Skip Intro" button automatically
+- ✅ Toggle auto-skip on and off from the popup
+- ✅ Works on Netflix domains around the world
+- ✅ Lightweight and non-intrusive: it never alters the page's look or playback
+- ✅ Multi-language support (English, Japanese, and others)
+- ✅ Session handling for multiple videos
+- ✅ Robust error handling
+- ✅ No data collection: settings are stored locally with `chrome.storage`, and the extension makes no network requests
 
-**注意**: このツールは個人利用のために作成されたもので、現時点では Chrome ウェブストアで公開する予定はありません。以下の手順で手動インストールしてください。
+> The extension only presses the button Netflix already shows. It does not work on titles where Netflix does not display a "Skip Intro" button.
 
-1. このプロジェクトのファイルをダウンロード
-2. Chrome を開き、`chrome://extensions/` にアクセス
-3. 右上の「デベロッパーモード」を有効にする
-4. 「パッケージ化されていない拡張機能を読み込む」をクリック
-5. 拡張機能のディレクトリを選択
-6. 拡張機能がインストールされ、使用準備完了
+## 🚀 Installation
 
-## 📖 使用方法
+**Note**: The extension is not published on the Chrome Web Store yet. Install it manually:
 
-1. Netflix にアクセスして動画の視聴を開始
-2. イントロが表示されると、拡張機能が自動的にスキップ
-3. 拡張機能のポップアップで自動スキップのオン/オフを切り替え可能
-4. 設定はブラウザセッション間で保存されます
+1. Download or clone this repository
+2. Open Chrome and go to `chrome://extensions/`
+3. Turn on **Developer mode** in the top right
+4. Click **Load unpacked**
+5. Select the extension directory (the one that contains `manifest.json`)
+6. The extension is installed and ready to use
 
-## 🛠️ 開発
+## 📖 Usage
 
-### 開発者向け（コードを修正・テストする場合）
+1. Open Netflix and start watching a video
+2. When the intro appears, the extension skips it automatically
+3. Use the extension popup to turn auto-skip on or off
+4. Your settings are kept across browser sessions
 
-拡張機能のコードを修正したり、テストを実行したい場合のみ以下が必要です：
+## ⚠️ Disclaimer
 
-### 環境セットアップ
+- This extension is not affiliated with, endorsed by, or sponsored by Netflix, Inc.
+- Netflix is a trademark of Netflix, Inc.
+- Netflix's Terms of Use restrict inserting code into its service and using automated means. Using this extension may conflict with those terms. Use it at your own risk.
+- The extension does not collect or transmit any user data.
+
+## 🛠️ Development
+
+You only need this section if you want to modify the code or run the tests.
+
+### Setup
 
 ```bash
-# 依存関係をインストール（開発・テスト用）
+# Install dependencies (for development and testing)
 npm install
 
-# すべてのテストを実行
+# Run all tests
 npm test
 
-# 特定のテストを実行
+# Run a specific test
 npm test -- integration.test.js
 
-# テストをウォッチモードで実行
+# Run tests in watch mode
 npm run test:watch
 
-# テストカバレッジを確認
+# Check test coverage
 npm run test:coverage
 ```
 
-### 開発ワークフロー
+### Workflow
 
-1. **ソースコード**: `src/` フォルダ内のファイルを編集
-2. **テスト**: `tests/` フォルダ内でテストを作成・実行
-3. **アイコン**: `assets/icons/` でアイコンファイルを管理
-4. **拡張機能テスト**: Chrome で `chrome://extensions/` から再読み込み
+1. **Source code**: edit the files in `src/`
+2. **Tests**: write and run tests in `tests/` (Jest + jsdom, with property-based tests using fast-check)
+3. **Icons**: manage icon files in `assets/icons/`
+4. **Try it in Chrome**: reload the extension from `chrome://extensions/`
 
-### リリースバージョン管理
+jsdom tests cannot cover the popup UI or content script behavior in a real browser, so check those manually in Chrome.
 
-リリースバージョンを更新したい場合は以下のコマンドを実行すると`package.json`と`manifest.json`の`version`が更新されます
+### Releasing a version
+
+`package.json` is the source of truth for the version. The script syncs it to `manifest.json`. **Do not edit `version` in `manifest.json` by hand.**
 
 ```bash
-# パッチバージョンアップ（バグ修正: 1.0.1 → 1.0.2）
+# Patch (bug fixes: 1.0.1 → 1.0.2)
 npm run version:patch
 
-# マイナーバージョンアップ（新機能: 1.0.1 → 1.1.0）
+# Minor (new features: 1.0.1 → 1.1.0)
 npm run version:minor
 
-# メジャーバージョンアップ（破壊的変更: 1.0.1 → 2.0.0）
+# Major (breaking changes: 1.0.1 → 2.0.0)
 npm run version:major
 ```
 
-Dry Run（事前確認）:
+Dry run (see what would happen first):
 
 ```bash
-# 実行前に何が行われるかを確認
 npm run version:dry-run:patch
 npm run version:dry-run:minor
 npm run version:dry-run:major
 ```
 
-実行例:
+The command checks that the versions are consistent, runs `npm version` (which runs `npm test` in `preversion`), then syncs `manifest.json`. No git tag is created, so add a tag such as `v1.0.2` yourself.
 
-```bash
-$ npm run version:patch
-
-> netflix-intro-skipper@1.0.1 version:patch
-> node scripts/release-version.js check && npm version patch --no-git-tag-version && node scripts/release-version.js sync
-
-📦 Package version: 1.0.1
-📋 Manifest version: 1.0.1
-✅ Versions are consistent!
-
-> preversion
-> npm test
-
-
-> netflix-intro-skipper@1.0.1 test
-> jest
-
- PASS  tests/integration.test.js
- PASS  tests/e2e.test.js
- PASS  tests/ui-non-interference.test.js
- PASS  tests/settings-persistence.test.js
- PASS  tests/domain-filtering.test.js
- PASS  tests/popup.test.js
- PASS  tests/multiple-video-session.test.js
- PASS  tests/auto-click.test.js
- PASS  tests/no-action-behavior.test.js
- PASS  tests/error-handling.test.js (5.283 s)
- PASS  tests/retry-mechanism.test.js (5.928 s)
- PASS  tests/conditional-behavior.test.js (6.351 s)
-
-Test Suites: 12 passed, 12 total
-Tests:       128 passed, 128 total
-Snapshots:   0 total
-Time:        7.025 s
-Ran all test suites.
-v1.0.2
-📦 Package version: 1.0.2
-🔄 Updated manifest.json: 1.0.1 → 1.0.2
-✅ Version sync completed successfully!
-```
-
-### プロジェクト構造
+### Project structure
 
 ```none
 netflix-intro-skipper/
-├── .kiro/                              # Kiro 仕様ドキュメント
-│   └── specs/
-│       └── netflix-intro-skipper/
-│           ├── design.md               # 設計ドキュメント
-│           ├── requirements.md         # 要件定義
-│           └── tasks.md                # 実装タスク
-├── .vscode/                            # VS Code / Kiro 設定
-│   └── settings.json                   # プロジェクト固有設定
-├── assets/                             # 静的ファイル
-│   ├── icons/                          # 拡張機能アイコン
-│   │   ├── icon16.png                  # 16x16px アイコン
-│   │   ├── icon32.png                  # 32x32px アイコン
-│   │   ├── icon48.png                  # 48x48px アイコン
-│   │   ├── icon128.png                 # 128x128px アイコン
-│   │   └── README.md                   # アイコン作成ガイド
-│   └── .gitkeep
-├── coverage/                           # テストカバレッジレポート(Git管理外)
-├── node_modules/                       # npm 依存関係(Git管理外)
-├── scripts/                            # 開発用スクリプト
-│   └── release-version.js              # リリースバージョン管理スクリプト
-├── src/                                # ソースコード
-│   ├── popup/                          # ポップアップUI
-│   │   ├── .gitkeep
-│   │   ├── popup.html                  # 設定インターフェース
-│   │   └── popup.js                    # ポップアップロジック
-│   ├── .gitkeep
-│   ├── background.js                   # バックグラウンドサービスワーカー
-│   ├── content.js                      # Netflix ページ用コンテンツスクリプト
-│   ├── integration.js                  # コンポーネント統合管理
-│   ├── settings.js                     # 設定管理
-│   └── version.js                      # バージョン管理ユーティリティ
-├── tests/                              # テストファイル
-│   ├── .gitkeep
-│   ├── auto-click.test.js              # 自動クリック機能のテスト
-│   ├── conditional-behavior.test.js    # 条件付き動作のテスト
-│   ├── domain-filtering.test.js        # ドメインフィルタリングのテスト
-│   ├── e2e.test.js                     # エンドツーエンドテスト
-│   ├── error-handling.test.js          # エラーハンドリングのテスト
-│   ├── integration.test.js             # 統合テスト
-│   ├── multiple-video-session.test.js  # 複数動画セッションのテスト
-│   ├── no-action-behavior.test.js      # 非アクション時の動作テスト
-│   ├── popup.test.js                   # ポップアップUIのテスト
-│   ├── retry-mechanism.test.js         # リトライ機構のテスト
-│   ├── settings-persistence.test.js    # 設定永続化のテスト
-│   ├── test-setup.js                   # Jest テスト設定
-│   └── ui-non-interference.test.js     # UI非干渉性のテスト
-├── .gitignore                          # Git 除外設定
-├── LICENSE                             # MIT ライセンス
-├── manifest.json                       # 拡張機能の設定
-├── package-lock.json                   # npm 依存関係ロック
-├── package.json                        # プロジェクト設定とテスト設定
-└── README.md
+├── .kiro/specs/netflix-intro-skipper/  # Requirements, design, and tasks (Kiro specs)
+├── assets/icons/                       # Extension icons
+├── scripts/
+│   └── release-version.js              # Release version management script
+├── src/
+│   ├── popup/                          # Popup UI (popup.html, popup.js)
+│   ├── background.js                   # Background service worker
+│   ├── content.js                      # Content script for Netflix pages
+│   ├── integration.js                  # Messaging and state sync between components
+│   ├── settings.js                     # Settings management
+│   └── version.js                      # Version utility
+├── tests/                              # Jest tests
+├── LICENSE                             # MIT license
+├── manifest.json                       # Extension manifest (Manifest V3)
+├── package.json                        # Project and test configuration
+├── README.md                           # README (English)
+└── README.ja.md                        # README (Japanese)
 ```
 
-## 🏗️ 技術仕様
+The content scripts are loaded in the order listed in `manifest.json` (`version.js` → `settings.js` → `integration.js` → `content.js`). If you add or split files, update that list too.
 
-- **Manifest V3** - 最新の Chrome 拡張機能 API
+## 🏗️ Technical details
 
-## 📋 動作要件
+- **Manifest V3**: the current Chrome extension platform
+- **Permissions**: `storage` and `activeTab`, plus host access to Netflix domains only
 
-- Chrome ブラウザ（Manifest V3 対応）
-- Netflix サブスクリプションとアクセス権
+## 📋 Requirements
 
-## 📄 ライセンス
+- Google Chrome (Manifest V3 support)
+- A Netflix subscription
 
-このプロジェクトは [MIT License](LICENSE) の下でライセンスされています。
+## 📄 License
 
-## 🙏 謝辞
+This project is licensed under the [MIT License](LICENSE).
 
-- [Netflix](https://www.netflix.com) - 素晴らしいストリーミングサービス
-- [Kiro](https://kiro.dev) - このプロジェクトの開発を支援してくれた Agentic IDE。仕様・デザイン・タスクの作成から実装やテストまで全ての工程でサポートしてくれました。Kiro のおかげで私のアイデアが実現できました。
-- [Lovart AI](https://lovart.ai) - 拡張機能アイコンのデザイン作成に使用
+## 🙏 Acknowledgments
 
----
-
-**注意**: この拡張機能は Netflix の公式製品ではありません。個人利用目的で作成されており、Netflix の利用規約に従って使用してください。
+- [Kiro](https://kiro.dev): the agentic IDE that supported development, from specs, design, and tasks through implementation and testing
+- [Lovart AI](https://lovart.ai): used to design the extension icon
