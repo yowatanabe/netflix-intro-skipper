@@ -179,13 +179,6 @@ class SettingsManager {
   }
 
   /**
-   * Reset error count (for recovery)
-   */
-  resetErrors() {
-    this.errorCount = 0;
-  }
-
-  /**
    * Check if settings manager is functional
    * @returns {boolean} Whether the settings manager should continue operating
    */
