@@ -36,7 +36,7 @@
   "homepage": "https://github.com/yowatanabe/netflix-intro-skipper#readme",
   "devDependencies": {
     "@types/chrome": "^0.3.7",
-    "fast-check": "^4.10.2",
+    "fast-check": "^4.11.0",
     "jest": "^30.5.2",
     "jest-environment-jsdom": "^30.5.2"
   },
